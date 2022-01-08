@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/@codolog/form@1.0.0/dist/form.min.css" />
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <div class="wrapper">
+        <form>
+            <div>
+                <div>
+                    <label class="form">Hash Input</label>
+                    <input type="text" class="form" id="hash_input" placeholder="Enter a valid 8 digit hex number">
+                </div>
+                <div>
+                    <label class="form">Select Endianness</label>
+                    <select class="form" id="hash_endianness">
+                        <option>Reverse</option>
+                        <option>Keep</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="button" class="form full" id="hash_submit">Calculate</button>
+                </div>
+                <br/>
+                <br/>
+                <div>
+                    <label class="form">Output</label>
+                    <textarea id="hash_output" class="form" readonly placeholder="Output"></textarea>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script type="module">
+        const hash_endianness = document.getElementById("hash_endianness");
+        const hash_submit = document.getElementById("hash_submit");
+        const hash_output = document.getElementById("hash_output");
+        const hash_input = document.getElementById("hash_input");
+
+        window.config = [10, 10, 700, 200];
+        const fetchTask = fetch("assets/version_map.json")
+            .then(res => res.json())
+            .then(data => window.versionMap = data)
+            .catch(() => {
+                window.versionMap = {};
+                console.error("Failed to fetch version map");
+            });
+
+        import { default as loadwasm, find_hash_origin } from "./pkg/nv_crack.js";
+
+        Promise.all([loadwasm(), fetchTask]).then(() => {
+            hash_submit.onclick = () => {
+                let value = hash_input.value.toUpperCase().replace(/\s+/g, "");
+
+                hash_output.value = "Validating input\n";
+
+                if (!/^[A-F0-9]{8}$/.test(value)) {
+                    return hash_output.value += "Invalid input, expected 8 hex digits";
+                }
+
+                if (hash_endianness.value === "Reverse") {
+                    hash_output.value += "Reversing endianness\n";
+                    value = value.split((/(..)/g)).filter(s => s).reverse().reduce((a,b) => a + b, "");
+                }
+
+                let input_hash = parseInt(value, 16);
+
+                hash_output.value += `Trying to reach target: 0x${value.padStart(8, "0")} (${input_hash})\n`;
+
+                let result = find_hash_origin(...window.config, input_hash);
+
+                if (result) {
+                    hash_output.value += `Found version candidate ${result}\n`;
+
+                    const node_versions = window.versionMap[result];
+
+                    if (node_versions) {
+                        hash_output.value += `Possible Node.JS versions:\n${node_versions.map(version => " - " + version).join("\n")}`
+                    } else {
+                        hash_output.value += "No matching Node.JS versions found";
+                    }
+                } else {
+                    hash_output.value += "Found no version candidates\n";
+                }
+            };
+        });
+    </script>
+</body>
+</html>
