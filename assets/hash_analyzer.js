@@ -1,6 +1,6 @@
 
 export function checkSignature(data) {
-    return data.toString(16).toUpperCase().substring(0, 4);
+    return data.toString(16).toUpperCase().substring(0, 4) === "C0DE";
 }
 
 import { find_hash_origin } from "../pkg/nv_crack.js";
