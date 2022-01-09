@@ -69,7 +69,7 @@
 
                 let view;
                 try {
-                    view = new Uint32Array(data);
+                    view = new Uint32Array(data, 0, 64);
                 } catch(e) {
                     console.error(e);
                     output.value += "Invalid file";
