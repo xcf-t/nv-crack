@@ -4,7 +4,7 @@ pub fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-pub fn hash_version(major: u32, minor: u32, patch: u32, build: u32) -> i32 {
+pub fn hash_version(major: u32, minor: u32, patch: u32, build: u32) -> u32 {
     hash_combine(
         hash_combine(
             hash_combine(
@@ -17,7 +17,7 @@ pub fn hash_version(major: u32, minor: u32, patch: u32, build: u32) -> i32 {
             hash_value(minor)
         ),
         hash_value(major)
-    ) as i32
+    ) as u32
 }
 
 fn hash_value(mut v: u32) -> u64 {

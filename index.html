@@ -30,7 +30,6 @@
 
     <script type="module">
         const file_input = document.getElementById("file_input");
-        const hash_input = document.getElementById("hash_input");
         const submit = document.getElementById("submit");
 
         const output = document.getElementById("output");
@@ -68,7 +67,14 @@
 
                 if (data.length <= 0x4) return void (output.value += "File is too small (incomplete header)\n");
 
-                const view = new Uint32Array(data);
+                let view;
+                try {
+                    view = new Uint32Array(data);
+                } catch(e) {
+                    console.error(e);
+                    output.value += "Invalid file";
+                    return;
+                }
 
                 let valid = checkSignature(view[0]);
 
