@@ -12,36 +12,33 @@
         <form>
             <div>
                 <div>
-                    <label class="form">Hash Input</label>
-                    <input type="text" class="form" id="hash_input" placeholder="Enter a valid 8 digit hex number">
+                    <label class="form">Bytecode Input</label>
+                    <input type="file" class="form" id="file_input">
                 </div>
                 <div>
-                    <label class="form">Select Endianness</label>
-                    <select class="form" id="hash_endianness">
-                        <option>Reverse</option>
-                        <option>Keep</option>
-                    </select>
-                </div>
-                <div>
-                    <button type="button" class="form full" id="hash_submit">Calculate</button>
+                    <button type="button" class="form full" id="submit">Submit</button>
                 </div>
                 <br/>
                 <br/>
                 <div>
                     <label class="form">Output</label>
-                    <textarea id="hash_output" class="form" readonly placeholder="Output"></textarea>
+                    <textarea id="output" class="form" readonly placeholder="Output"></textarea>
                 </div>
             </div>
         </form>
     </div>
 
     <script type="module">
-        const hash_endianness = document.getElementById("hash_endianness");
-        const hash_submit = document.getElementById("hash_submit");
-        const hash_output = document.getElementById("hash_output");
+        const file_input = document.getElementById("file_input");
         const hash_input = document.getElementById("hash_input");
+        const submit = document.getElementById("submit");
 
-        window.config = [10, 10, 700, 200];
+        const output = document.getElementById("output");
+
+        window.config = {
+            versionMask: [10, 10, 700, 200]
+        };
+
         const fetchTask = fetch("assets/version_map.json")
             .then(res => res.json())
             .then(data => window.versionMap = data)
@@ -50,42 +47,38 @@
                 console.error("Failed to fetch version map");
             });
 
-        import { default as loadwasm, find_hash_origin } from "./pkg/nv_crack.js";
+        import { default as loadwasm } from "./pkg/nv_crack.js";
+        import { checkSignature, analyzeHash } from "./assets/hash_analyzer.js";
 
         Promise.all([loadwasm(), fetchTask]).then(() => {
-            hash_submit.onclick = () => {
-                let value = hash_input.value.toUpperCase().replace(/\s+/g, "");
+            submit.onclick = async () => {
+                output.value = "";
 
-                hash_output.value = "Validating input\n";
+                const file = file_input.files[0];
+                if (!file) return;
 
-                if (!/^[A-F0-9]{8}$/.test(value)) {
-                    return hash_output.value += "Invalid input, expected 8 hex digits";
-                }
+                let reader = new FileReader();
+                const readTask = new Promise(resolve => {
+                    reader.addEventListener('load', resolve);
+                });
+                reader.readAsArrayBuffer(file);
 
-                if (hash_endianness.value === "Reverse") {
-                    hash_output.value += "Reversing endianness\n";
-                    value = value.split((/(..)/g)).filter(s => s).reverse().reduce((a,b) => a + b, "");
-                }
+                const event = await readTask;
+                const data = event.target.result;
 
-                let input_hash = parseInt(value, 16);
+                if (data.length <= 0x4) return void (output.value += "File is too small (incomplete header)\n");
 
-                hash_output.value += `Trying to reach target: 0x${value.padStart(8, "0")} (${input_hash})\n`;
+                const view = new Uint32Array(data);
 
-                let result = find_hash_origin(...window.config, input_hash);
+                let valid = checkSignature(view[0]);
 
-                if (result) {
-                    hash_output.value += `Found version candidate ${result}\n`;
+                output.value += `File signature is ${valid ? 'valid' : 'invalid'}!\n\n`;
 
-                    const node_versions = window.versionMap[result];
+                analyzeHash(output, view[1]);
 
-                    if (node_versions) {
-                        hash_output.value += `Possible Node.JS versions:\n${node_versions.map(version => " - " + version).join("\n")}`
-                    } else {
-                        hash_output.value += "No matching Node.JS versions found";
-                    }
-                } else {
-                    hash_output.value += "Found no version candidates\n";
-                }
+                console.log(view);
+
+                output.value += `Source length: ${view[2]}`;
             };
         });
     </script>
